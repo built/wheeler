@@ -1,0 +1,4 @@
+#!/workarea/wheeler
+println "Content-type: text/html"
+println ""
+println "Hello web! What?"
