@@ -2,7 +2,6 @@
 from category import Category
 from category.stdout import printer
 import fileinput
-import re
 import sys
 from interpreter.tools import parse
 from common import *
