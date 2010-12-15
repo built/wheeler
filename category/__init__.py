@@ -129,10 +129,6 @@ class Category(object):
 		return [self.transitions[transition](items_that_will_react(transition, items_being_added)) for transition in self.transitions]
 
 
-	def has_transition_for(self, category_name):
-		return category_name in self.transitions
-
-
 	"""
 	Returns a set of this category's "family".
 	Family is determined by inherent type (name) or first-order type (contents).
