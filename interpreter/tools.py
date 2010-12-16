@@ -12,18 +12,6 @@ quoted_phrase = r"\"[^\"]*\""
 
 TOKENS = re.compile( "|".join([parens, bare_phrase, quoted_phrase]) )
 
-
-def unbalanced_parens(string):
-	parens_difference = 0
-
-	for char in string:
-		if char == '(':
-			parens_difference += 1
-		elif char == ')':
-			parens_difference -= 1
-
-	return (parens_difference != 0)
-
 def tokenize(expression):
 	return [] if not expression else [token for token in re.findall(TOKENS, expression)]
 
