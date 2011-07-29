@@ -1,13 +1,23 @@
 # Parsing/interpreting tools for the runtime and interpreter.
 import re
-from category import Category, ContainingModuleNameGivenInsteadOfClassName, iscategory
+from time import time, strftime
+from itertools import *
+from category import Category, CategoryInspector
+from associative_tools import AssociativeSet
+
+LABEL, VALUE = 0, 1
+
+def iscategory(obj):
+	return isinstance(obj, Category)
 
 def islist(obj):
 	return type(obj) == type([])
 
+def isstr(obj):
+	return isinstance(obj, str)
 
 parens = r"\(|\)"
-bare_phrase = r"[\w|\=|\||\.|\*|\+|\-|\/|\!|\$]+"
+bare_phrase = r"[\w|\=|\||\.|\*|\+|\-|\/|\!|\$|\<|\>\[\]]+"
 quoted_phrase = r"\"[^\"]*\""
 
 TOKENS = re.compile( "|".join([parens, bare_phrase, quoted_phrase]) )
@@ -48,135 +58,207 @@ def lex(stream):
 def syntax_tree(expression):
 	return lex( tokenize(expression) )
 
-def parse(expression, given_context=None):
-	return categorize( syntax_tree(expression) , given_context)
+def parse(expression, context=None):
+	categorized_expression = categorize( syntax_tree(expression) , context)
+	annotate(context)
+	return categorized_expression
 
-def rebuild_expression(nested_token_list):
-	"""
-	We need the full expression so we can properly name certain categories.
-	What better way to do that than to recreate them from the parse tree instead
-	of just hanging on to the original expression?
-	Glad you're coming with me on that.
-	"""
-	expression = ""
-	first_field = True # until we deal with the first!
-	for token in nested_token_list:
-		if islist(token):
-			expression += " " + rebuild_expression(token)
-		else:
-			expression += ("%s" % token) if first_field else (" %s" % token)
-			first_field = False
+def annotate(context):
+	string, number, metadata = create_tags(context, "string", "number", "metadata")
 
-	return "(%s)" % expression.strip()
-
-def find_or_create_outer_category(tokenized_expression, given_context):
-	if rebuild_expression(tokenized_expression) not in given_context.contents:
-		return Category(rebuild_expression(tokenized_expression), given_context)
-	else:
-		return given_context.contents[rebuild_expression(tokenized_expression)]
-
-def categorize(tokenized_expression, given_context):
-
-	containing_category = find_or_create_outer_category(tokenized_expression, given_context)
-
-	# Sometimes this is a list. Can't initialize a Category with a list.
-	# Let's prescan to handle list situations and emit a category for those.
-	tokenized_expression = [categorize(item, given_context) if islist(item) else item for item in tokenized_expression]
-
-	# Now we're guaranteed a flat list, some of which are Categories. Let's make them all categories now.
-	tokenized_expression = convert_all_to_categories(tokenized_expression, given_context)
-
-	# Now we're guaranteed a flat list of Categories. Add them into the return envelope.
-	containing_category.add(tokenized_expression)
-
-	containing_category.create("metadata")
-
-	return containing_category
+	for item in context.contents.values():
+		if re.match(quoted_phrase, item.name):
+			interact(context, item, string, metadata)
+		elif re.match(r"\d+", item.name):
+			interact(context, item, number, metadata)
 
 
-def convert_all_to_categories(tokenized_expression, given_context):
+def categorized_expression(new_categories, context):
+	expression = interact(context, *new_categories)
+	position, metadata = create_tags(context, "position", "metadata")
+
+	# Enumerate each term's original position in the originating expression.
+	i = 0
+	for category in new_categories:
+		number = context.lookup_items_by_name(str(i))[0]
+		context.add(number)
+		interact(context, category, expression, metadata, position, number)
+		i += 1
+
+	return expression
+
+def categorize(tokenized_expression, context):
+	tokenized_expression = [categorize(item, context) if islist(item) else item for item in tokenized_expression]
+	new_categories = convert_all_to_categories(tokenized_expression, context)
+	return categorized_expression(new_categories, context)
+
+def convert_all_to_categories(tokenized_expression, context):
 	# Now we're guaranteed a flat list, some of which are Categories. Let's make them all categories now.
 	for i in range(len(tokenized_expression)):
 		if not iscategory(tokenized_expression[i]):
-			tokenized_expression[i] = create_classified_category(tokenized_expression[i], given_context)
+			tokenized_expression[i] = create_category(tokenized_expression[i], context)
 
 	return tokenized_expression
 
-def create_classified_category(token, given_context):
+def create_category(token, context):
+	if not isstr(token): return token # I think this is really "ensure is category"
+	return context.contents[token] if token in context.contents else Category(token, context)
 
-	if token in given_context.contents:
-		return given_context.contents[token]
+def create_tags(context, *tagnames):
+	tags = [context.lookup_items_by_name(tagname)[0] for tagname in tagnames]
+	for tag in tags:
+		context.connect(tag)
+	return tags
 
-	category = Category(token, given_context)
-	if re.match(quoted_phrase, category.value):
-		category.add(Category("string", given_context) if "string" not in given_context.contents else given_context.contents["string"])
-	elif re.match(r"^\d+$", category.value):
-		category.add(Category("number", given_context) if "number" not in given_context.contents else given_context.contents["number"])
+def is_qualifier(category):
+	return "qualifier" in category.contents
 
-	return category
-
-
-def evaluate(line_number, line, root):
-	"""Here we're expected a line number from the source file, the 'line' as a list of tokens, and the 'root'
-	or parent category space."""
-
-	# Ensure everything passed to us is represented as a category.
-	categories = [ Category(token) if token not in root.contents else root.contents[token] for token in line ]
-
-	# TODO: Remove the following once it is no longer needed for debugging purposes.
-	if str( type(categories[0]) ) == "<type 'module'>":
-		raise ContainingModuleNameGivenInsteadOfClassName
-
-	# Put any new categories into the root category.
-	for cat in categories:
-		if cat.name not in root.contents:
-			root.contents[cat.name] = cat
-
-	interaction_results = []
-
-	# Add all given categories to each other.
-	for this_category in categories:
-		others = [other for other in categories if other is not this_category]
-		if others:
-			interaction_results += [this_category.add(others)]
-
-	return Category(interaction_results)
-
-def create_relation(tokens, root):
-	"""Here we're expecting a list of tokens, and the 'root'
-	or parent category space. We're going to emit a list of categories.
-	BUT we will not evaluate them."""
-
-	# Ensure everything passed to us is represented as a category.
-	categories = [ Category(token) if token not in root.contents else root.contents[token] for token in tokens ]
-
-	# Add any new categories to the root category we've been given. Note that
-	# while we don't want RELATIONS to be evaluated yet (and their categories to interact)
-	# we still need to track new categories when they are created.
-
-	# Put any new categories into the root category.
-	for cat in categories:
-		if cat.name not in root.contents:
-			root.add(cat)
-
-	return categories
+def is_relation(category):
+	return "__relation__" in category.name
 
 
-def typedump(msg, items):
-	print "typedump:"
-	print msg
-	for item in items:
-		print type(item)
-	print "---"
+def pattern_terms(context, pattern):
+	return [term for term in pattern.contents.values()
+		if term.name != context.name
+		and term.name != "pattern"
+		and ( is_qualifier(term) or not is_relation(term) ) ]
 
-def valdump(msg, items):
-	print "valdump:"
-	print msg
-	for item in items:
-		print item
-	print "---"
+def quality(context, qualifier):
+	return [term for term in qualifier.contents.values() if term.name != context.name and term.name != "qualifier" and not is_relation(term)]
+
+def no_relations(names):
+	return [name for name in names if "__relation__" not in name]
+
+def pure_terms(terms, *exclude):
+	return no_relations([term for term in terms.terms if term not in exclude])
+
+def action_for_pattern(context, pattern):
+	transitions = context.comprehend("transition", "!metadata", pattern.name)
+	if transitions:
+		actions = context.comprehend("action", "!metadata", transitions[0].name)
+		if actions:
+			return actions[0]
+	return None # This pains me. Falling through with null. TODO: Grace.
+
+def dump_pattern(context, pattern):
+	print "-= PATTERN DUMP =-"
+
+	for term in pattern:
+		if is_qualifier(term):
+			qualified = qualified_type(context, term)
+
+			print "[%s]" % (qualified if qualified else 'EVERYTHING')
+		else:
+			print term.name
+
+	print "-= ------------ =-"
+
+def qualified_type(context, term):
+	types = quality(context, term)
+	return types[0].name if types else '' # Default to no type, aka "everything".
+
+def term_in_expression(context, term, expression):
+	return context.comprehend(expression.name, term.name)
 
 
+def match(context, pattern, expression):
+	pure_pattern = pattern_terms(context, pattern)
+	expression_terms = [term for term in expression.contents.values() if term.name != context.name and "metadata" not in term.terms]
+
+	literals = {term.name:None for term in pure_pattern if not is_qualifier(term)}
+	# Important note with qualifieds: Can't allow a pattern term to also be in the expression or you'll get an endless loop.
+	qualifieds = {term:[] for term in pure_pattern if is_qualifier(term)}
+
+	for expression_term in expression_terms:
+		for literal_term in literals.keys():
+			if literal_term == expression_term.name:
+				literals[literal_term] = expression_term
+
+		for qualified_term in qualifieds.keys():
+			qualifying_set = set(term for term in qualified_term.contents.values() if term.name != context.name and "__relation__" not in term.name and term.name != "qualifier")
+			qualification = [expression_term.name] + list(names(qualifying_set))
+			relationship = [relation for relation in context.comprehend(*qualification) if relation.name != context.name]
+			if relationship and expression_term.name not in qualified_term.terms:
+				qualifieds[qualified_term] += [expression_term]
+
+	# Don't return nulls, only real matches.
+	all_matches = [match for match in literals.values() if match] + list(chain.from_iterable(match for match in qualifieds.values() if match))
+
+	# ALL terms in the pattern must have a match.
+	return all_matches if all(literals.values()) and all(qualifieds.values()) else []
 
 
+def interact(context, *categories):
+	if not categories: return context
+	interaction = context.create_relation() # Worry about the vanity names option later.
+	attach_timestamp(context, interaction)
+	for category in categories:
+		interaction.connect(category)
+		context.connect(category)  # TODO: Why is this needed? Tests break w/o it, but why?
+	return interaction
+
+def evaluate(expression, context):
+		expressions = []
+
+		for pattern in all_patterns(context):
+			matches = match(context, pattern, expression)
+			if matches:
+				action = action_for_pattern(context, pattern)
+				if action:
+					pattern_terms = set(pure_terms(pattern, 'pattern'))
+					action_terms = set(pure_terms(action, 'action'))
+					parameters = {m.name for m in matches} - pattern_terms
+					expressions += [ " ".join(action_terms | parameters) ]
+
+		for new_expression_string in expressions:
+			evaluate( parse(new_expression_string, context), context)
+
+		if expression:
+			if "dump" in expression.terms:
+				dump(context, expression.terms)
+				return
+			elif "STDOUT" in expression.terms:
+				if context.comprehend("prelude", "loaded"):
+					printout(context, expression)
+					return
+
+
+def shorthand(name):
+	return name.replace("__relation__", "R")
+
+def dump(context, categories):
+	for category in categories:
+		subcategory_names = [shorthand(name) for name in category.terms if name != context.name]
+		if subcategory_names:
+			print "%s {%s}" % (shorthand(category.name), ", ".join(subcategory_names) )
+
+
+def destring(string):
+	return string[1:-1] if re.match(quoted_phrase, string) else string
+
+def printout(context, categories):
+	print "".join([destring(c) for c in categories.terms if c not in ['STDOUT', '*'] and "__relation__" not in c])
+
+
+def attach_timestamp(context, interaction):
+	timestamp = context.create_relation()
+	for tag in create_tags(context, "metadata", "time"):
+		timestamp.connect(tag)
+
+	time_labels = create_tags(context, "year", "month", "date", "hour", "minute", "second")
+	time_values = create_tags(context, *strftime("%Y %m %d %H %M %S").split())
+
+	for time in zip(time_labels, time_values):
+		time_component = context.create_relation()
+		time_component.connect(time[LABEL])
+		time_component.connect(time[VALUE])
+		time_component.connect(timestamp)
+
+	timestamp.connect(interaction)
+
+def names(categories):
+	return set([cat.name for cat in categories])
+
+def all_patterns(context):
+	return [pattern for pattern in context.comprehend("pattern", "!transition", "!metadata") if "metadata" not in pattern.terms]
 

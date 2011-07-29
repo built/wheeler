@@ -1,24 +1,41 @@
 #!/usr/bin/env python
 from category import Category
-from category.stdout import printer
 import fileinput
 import sys
-from interpreter.tools import parse
+from interpreter.tools import parse, evaluate
 from common import *
+import os
+
+def load_prelude():
+
+	for line in open( os.path.dirname(os.path.abspath(__file__)) + "/prelude.w", "r"):
+		line = line.strip()
+		# Comment stripper. Fragile!
+		line = line[:line.find('#')] if '#' in line else line
+
+		# Ignore blank lines
+		if line:
+			evaluate( parse(line, ROOT), ROOT )
 
 exiting = False
 
-print "%s\nType 'exit' to quit." % VERSION
+print "%s\nType 'exit', 'quit', or 'q' to quit." % VERSION
 
 exit_commands = ('exit', 'quit', 'q')
 clear_command = ('clear',)
 help_command = ('help',)
 
+help_text = """Commands:
+	'exit', 'quit', or 'q' to end session
+	'clear' to clear screen"""
+
+load_prelude()
+
 while not exiting:
 
 	line = raw_input(">> ").strip()
 	command = line.lower() # The line may be a REPL command.
-	
+
 	if command in exit_commands:
 		exiting = True
 		break
@@ -29,14 +46,27 @@ while not exiting:
 		continue
 
 	if command in ('help',):
-		print """Type 'exit' or 'quit' to end session or 'clear' to clear screen"""
+		print help_text
 		continue
-	
+
+	if command in ('reset',):
+		ROOT = Category("*")
+		ROOT.add(ROOT)
+		load_prelude()
+		print "* was reset"
+		continue
+
+
 	# Ignore blank lines
 	if line:
-		result = parse(line, ROOT).evaluate()
-		if result.contents.keys():
-			print result.contents.keys()[0]
+		relations_before = len(ROOT.terms)
+		evaluate( parse(line, ROOT), ROOT )
+		relations_after = len(ROOT.terms)
+		# print "%i relations created. Current total: %i" % ( (relations_after - relations_before), relations_after)
+		# print "%i patterns now exist." % len(ROOT.comprehend("pattern"))
+
+		# CategoryInspector(ROOT).dump_to_file("bigwheel.dot")
+		# CategoryInspector(ROOT).dump_to_file_especial("bigwheel.dot")
 
 
 

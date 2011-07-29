@@ -1,66 +1,80 @@
 import unittest
 from category import *
 from category.stdout import *
-from interpreter.tools import parse
+from interpreter.tools import parse, evaluate
 
-class TestParsing(unittest.TestCase):
+class TestEvaluation(unittest.TestCase):
 
-	def test_evaluate_nothing(self):
-	
-		root = Category()
-		self.assertNotEqual( root, None)
-	
-	
 	def test_evaluate_atom(self):
-	
+
 		root = Category('*')
-		
+		root.create("relation") # Housekeeping
+
 		expression = "foo"
-	
-		parse(expression, root).evaluate()
-		
-		self.assertEqual( len(root.contents), 2) # "foo" + container (but not $_, as ROOT was not evaluated.
-		
+
+		parsed = parse(expression, root)
+
+		evaluate(parsed, root)
+
+		# After an evaluation we should be able to see a relation which represents the result
+		# of this particular evaluation. It will relate to a timestamp and the given expression.
+		# In this way you should be able to see a history of evaluations.
+
 		self.assertTrue( "foo" in root.contents.keys() )
-	
+
 		self.assertTrue( root.has("foo") )
-	
+
 		self.assertTrue( isinstance( root.contents["foo"], Category) )
 
+		foo = root.contents["foo"]
+
+		self.assertFalse(foo.has("relation")) # Should not connect directly to <<relation>>
+
+
 	def test_evaluate_simple_expression(self):
-	
+
 		root = Category('*')
 
-		stdout = Category("stdout", root)
-	
-		expression = 'stdout "foo"'
-	
-		result = parse(expression, root).evaluate()
-		
-		category_stdout = root.contents['stdout']
+		expression = "foo bar baz"
 
-		category_foo = root.contents['"foo"']
-		
-		self.assertFalse('(stdout "foo")' in category_foo.contents, "Why is a nested expression appearing here?")
-		
-		self.assertTrue('stdout' in category_foo.contents)
-		
-		self.assertTrue('"foo"' in category_stdout.contents)
+		evaluate(parse(expression, root), root)  # Don't forget that at this point there are a bunch of meta-categories.
 
-	# def test_evaluate_simple_expression(self):
-	# 
-	# 	root = Category('*')
-	# 
-	# 	expression = "2 + 3"
-	# 
-	# 	result = parse(expression, root).evaluate()
-	# 
-	# 	# Expected categories are 2, +, and 3
-	# 	self.assertEqual( len(root.contents), 3)
-	# 	
-	# 	self.assertEqual( type(result), type(Category()))
-	# 	
-	# 	self.assertTrue(result.has(3), "%s isn't %s" % (result.name, Category(3, root).name))
+		connections = root.comprehend("baz", "foo", "bar")
+
+		self.assertEqual(len(connections), 1) # Should just have the expression.
+
+
+	def test_evaluate_simple_expression_multiple_times(self):
+
+		root = Category('*')
+
+		expression = "foo bar baz"
+
+		evaluate(parse(expression, root), root)  # Don't forget that at this point there are a bunch of meta-categories.
+		evaluate(parse(expression, root), root)  # Don't forget that at this point there are a bunch of meta-categories.
+		evaluate(parse(expression, root), root)  # Don't forget that at this point there are a bunch of meta-categories.
+
+		connections = root.comprehend("baz", "foo", "bar")
+
+		self.assertEqual(len(connections), 3) # Should have a relation for each evaluation.
+		
+		# NO! Should only have a single relation for the connection. There should be metadata associated with each interaction instance.
+
+
+
+	def test_evaluate_different_atoms(self):
+
+		rootA = Category('*')
+		rootB = Category('*')
+
+		expressionA = "foo"
+		expressionB = "(foo)"
+
+		evaluate(parse(expressionA, rootA), rootA)
+		evaluate(parse(expressionB, rootB), rootB)
+		category_delta = len(rootB.contents) - len(rootA.contents)
+
+		self.assertTrue(category_delta > 0, "Second expression should generate different numbers of categories")
 
 
 if __name__ == '__main__':

@@ -1,11 +1,23 @@
-#!/Library/Frameworks/Python.framework/Versions/Current/bin/python
 #!/usr/bin/env python
 from category import Category
-from category.stdout import printer
 import fileinput
 import sys
-from interpreter.tools import parse
+from interpreter.tools import parse, evaluate
 from common import *
+import os
+
+def load_prelude():
+
+	for line in open(os.path.dirname(os.path.abspath(__file__)) + "/prelude.w", "r"):
+		line = line.strip()
+		# Comment stripper. Fragile!
+		line = line[:line.find('#')] if '#' in line else line
+
+		# Ignore blank lines
+		if line:
+			evaluate( parse(line, ROOT), ROOT )
+
+load_prelude()
 
 tokenized_lines = []
 
@@ -19,5 +31,4 @@ for line in fileinput.input():
 
 	# Ignore blank lines
 	if line:
-		parse(line, ROOT).evaluate()
-
+		evaluate( parse(line, ROOT), ROOT )
