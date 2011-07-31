@@ -19,8 +19,8 @@ def isstr(obj):
 parens = r"\(|\)"
 bare_phrase = r"[\w|\=|\||\.|\*|\+|\-|\/|\!|\$|\<|\>\[\]]+"
 quoted_phrase = r"\"[^\"]*\""
-
-TOKENS = re.compile( "|".join([parens, bare_phrase, quoted_phrase]) )
+regex_phrase = r"/[^\/\s]*\/"
+TOKENS = re.compile( "|".join([regex_phrase, quoted_phrase, parens, bare_phrase]) )
 
 def tokenize(expression):
 	return [] if not expression else [token for token in re.findall(TOKENS, expression)]
@@ -64,13 +64,15 @@ def parse(expression, context=None):
 	return categorized_expression
 
 def annotate(context):
-	string, number, metadata = create_tags(context, "string", "number", "metadata")
+	string, number, regex, metadata = create_tags(context, "string", "number", "regex", "metadata")
 
 	for item in context.contents.values():
 		if re.match(quoted_phrase, item.name):
 			interact(context, item, string, metadata)
 		elif re.match(r"\d+", item.name):
 			interact(context, item, number, metadata)
+		elif re.match(regex_phrase, item.name):
+			interact(context, item, regex, metadata)
 
 
 def categorized_expression(new_categories, context):
@@ -112,6 +114,9 @@ def create_tags(context, *tagnames):
 
 def is_qualifier(category):
 	return "qualifier" in category.contents
+
+def is_regex(context, category):
+	return context.comprehend(category.name, "regex", "metadata")
 
 def is_relation(category):
 	return "__relation__" in category.name
@@ -165,7 +170,10 @@ def match(context, pattern, expression):
 	pure_pattern = pattern_terms(context, pattern)
 	expression_terms = [term for term in expression.contents.values() if term.name != context.name and "metadata" not in term.terms]
 
-	literals = {term.name:None for term in pure_pattern if not is_qualifier(term)}
+	literals = {term.name:None for term in pure_pattern if not is_qualifier(term) and not is_regex(context, term)}
+
+	regexes = {term.name:None for term in pure_pattern if is_regex(context, term)}
+
 	# Important note with qualifieds: Can't allow a pattern term to also be in the expression or you'll get an endless loop.
 	qualifieds = {term:[] for term in pure_pattern if is_qualifier(term)}
 
@@ -173,6 +181,10 @@ def match(context, pattern, expression):
 		for literal_term in literals.keys():
 			if literal_term == expression_term.name:
 				literals[literal_term] = expression_term
+
+		for regex_term in regexes.keys():
+			if re.match(regex_term[1:-1], expression_term.name):
+				regexes[regex_term] = expression_term
 
 		for qualified_term in qualifieds.keys():
 			qualifying_set = set(term for term in qualified_term.contents.values() if term.name != context.name and "__relation__" not in term.name and term.name != "qualifier")
@@ -182,10 +194,10 @@ def match(context, pattern, expression):
 				qualifieds[qualified_term] += [expression_term]
 
 	# Don't return nulls, only real matches.
-	all_matches = [match for match in literals.values() if match] + list(chain.from_iterable(match for match in qualifieds.values() if match))
+	all_matches = [match for match in literals.values() if match] + [match for match in regexes.values() if match] + list(chain.from_iterable(match for match in qualifieds.values() if match))
 
 	# ALL terms in the pattern must have a match.
-	return all_matches if all(literals.values()) and all(qualifieds.values()) else []
+	return all_matches if all(literals.values()) and all(qualifieds.values()) and all(regexes.values()) else []
 
 
 def interact(context, *categories):

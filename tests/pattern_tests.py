@@ -190,6 +190,24 @@ class TestPatternMatching(unittest.TestCase):
 		self.assertEqual(names(matches), set(["print", '"foo"']))
 
 
+	# -------------------------------------------------------
+	# TEST REGEXES ALONE
+	# -------------------------------------------------------
+	def test_regex_single_match(self):
+		root = Category('*')
+
+		pattern = parse(r"pattern /A\d+B\d+C/", root)
+		expression =  parse("foo", root)
+		matches = match(root, pattern, expression)
+
+		self.assertFalse(matches, "Nothing should match yet.")
+
+		expression =  parse("A123B456C", root)
+		matches = match(root, pattern, expression)
+
+		self.assertEqual(len(matches), 1, "Should have a match.")
+
+		self.assertEqual(matches.pop().name, "A123B456C")
 
 
 if __name__ == '__main__':

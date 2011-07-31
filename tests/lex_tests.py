@@ -18,6 +18,13 @@ class LexTests(unittest.TestCase):
 		self.assertEqual(tokenize(expression), ["foo", "bar", "123", "+", "10", "/", "24", "10/24/1954"])
 
 
+	def test_tokenize_regexes(self):
+
+		expression = r"/ABC\d+ZZZ[^c]/"
+
+		self.assertEqual(tokenize(expression), [r"/ABC\d+ZZZ[^c]/"])
+
+
 	def test_lex_atoms(self):
 
 		expression = "foo - bar 123 + 10 / 24 10/24/1954"

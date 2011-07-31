@@ -65,6 +65,29 @@ class TestMetadata(unittest.TestCase):
 
 		self.assertTrue(len(match) > 0, "Not seeing 'number' metadata for this expression.")
 
+
+	def test_identify_simple_regex(self):
+
+		expression = '/ABC/'
+		root = Category("*")
+		result = parse(expression, root)
+
+		match = root.comprehend(expression, "regex", "metadata")
+
+		self.assertTrue(len(match) > 0, "Not seeing 'regex' metadata for this expression.")
+
+
+	def test_detailed_regex(self):
+
+		expression = r"/ABC\d+def[^c]/"
+		root = Category("*")
+		result = parse(expression, root)
+
+		match = root.comprehend(expression, "regex", "metadata")
+
+		self.assertTrue(len(match) > 0, "Not seeing 'regex' metadata for this expression.")
+
+
 	def test_timestamp(self):
 
 		expression = '123'
