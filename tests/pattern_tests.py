@@ -1,6 +1,5 @@
 import unittest
 from category import *
-from category.stdout import *
 from interpreter.tools import *
 
 class TestPatternMatching(unittest.TestCase):
@@ -11,10 +10,10 @@ class TestPatternMatching(unittest.TestCase):
 
 	def test_literal_single_match(self):
 		root = Category('*')
-		pattern = parse("pattern foo", root)
+		transition = parse("transition (pattern foo) (action no_action)", root)
 		expression =  parse("foo", root)
 
-		matches = match(root, pattern, expression)
+		matches = match(root, transition, expression)
 
 		self.assertEqual(len(matches), 1, "Should have ONE match only.")
 
@@ -22,26 +21,26 @@ class TestPatternMatching(unittest.TestCase):
 
 	def test_literal_match_when_subset(self):
 		root = Category('*')
-		pattern = parse("pattern foo bar", root)
+		transition = parse("transition (pattern foo bar) (action no_action)", root)
 		expression =  parse("foo bar baz", root)
 
-		matches = match(root, pattern, expression)
+		matches = match(root, transition, expression)
 
 		self.assertEqual(len(matches), 2, "Should have TWO matches only. (foo and bar)")
 
 	def test_literal_missing_match(self):
 		root = Category('*')
-		pattern = parse("pattern foo", root)
+		transition = parse("transition (pattern foo) (action no_action)", root)
 		expression =  parse("bar baz zither foof", root)
 
-		self.assertFalse(match(root, pattern, expression), "Should have NO matches")
+		self.assertFalse(match(root, transition, expression), "Should have NO matches")
 
 	def test_literal_partially_missing(self):
 		root = Category('*')
-		pattern = parse("pattern foo bar", root)
+		transition = parse("transition (pattern foo bar) (action no_action)", root)
 		expression =  parse("bar baz zither foof", root)
 
-		matches = match(root, pattern, expression)
+		matches = match(root, transition, expression)
 
 		self.assertEqual(len(matches), 0, "Should have NO matches")
 
@@ -53,9 +52,9 @@ class TestPatternMatching(unittest.TestCase):
 		root = Category('*')
 		evaluate(parse("AAA foo", root), root)
 
-		pattern = parse("pattern (AAA qualifier)", root)
+		transition = parse("transition (pattern (AAA qualifier)) (action no_action)", root)
 		expression =  parse("foo", root)
-		matches = match(root, pattern, expression)
+		matches = match(root, transition, expression)
 
 		self.assertEqual(len(matches), 1, "Should have ONE match only.")
 
@@ -68,9 +67,9 @@ class TestPatternMatching(unittest.TestCase):
 		evaluate(parse("AAA foo", root), root)
 		evaluate(parse("blarf bar", root), root)
 
-		pattern = parse("pattern (AAA qualifier) (blarf qualifier)", root)
+		transition = parse("transition (pattern (AAA qualifier) (blarf qualifier)) (action no_action)", root)
 		expression =  parse("foo bar", root)
-		matches = match(root, pattern, expression)
+		matches = match(root, transition, expression)
 
 		self.assertEqual(len(matches), 2, "Should have two matching terms.")
 
@@ -82,9 +81,9 @@ class TestPatternMatching(unittest.TestCase):
 		evaluate(parse("AAA foo", root), root)
 		evaluate(parse("blarf bar", root), root)
 
-		pattern = parse("pattern (AAA qualifier) (blarf qualifier)", root)
+		transition = parse("transition (pattern (AAA qualifier) (blarf qualifier)) (action no_action)", root)
 		expression =  parse("fizz binn", root)
-		matches = match(root, pattern, expression)
+		matches = match(root, transition, expression)
 
 		self.assertEqual(len(matches), 0, "Nothing should have matched!")
 
@@ -94,9 +93,9 @@ class TestPatternMatching(unittest.TestCase):
 		evaluate(parse("AAA foo", root), root)
 		evaluate(parse("blarf bar", root), root)
 
-		pattern = parse("pattern (AAA qualifier) (blarf qualifier)", root)
+		transition = parse("transition (pattern (AAA qualifier) (blarf qualifier))  (action no_action)", root)
 		expression =  parse("foo barney whoo hoo", root)
-		matches = match(root, pattern, expression)
+		matches = match(root, transition, expression)
 
 		self.assertEqual(len(matches), 0, "Nothing should match!")
 
@@ -109,9 +108,9 @@ class TestPatternMatching(unittest.TestCase):
 		root = Category('*')
 		evaluate(parse("AAA foo", root), root)
 
-		pattern = parse("pattern bar (AAA qualifier)", root)
+		transition = parse("transition (pattern bar (AAA qualifier)) (action no_action)", root)
 		expression =  parse("foo bar", root)
-		matches = match(root, pattern, expression)
+		matches = match(root, transition, expression)
 
 		self.assertEqual(len(matches), 2, "Should have two matching terms.")
 
@@ -121,9 +120,9 @@ class TestPatternMatching(unittest.TestCase):
 		root = Category('*')
 		evaluate(parse("AAA foo", root), root)
 
-		pattern = parse("pattern bar (AAA qualifier)", root)
+		transition = parse("transition (pattern bar (AAA qualifier)) (action no_action)", root)
 		expression =  parse("fizz bin bar", root)
-		matches = match(root, pattern, expression)
+		matches = match(root, transition, expression)
 
 		self.assertEqual(len(matches), 0, "Nothing should match!")
 
@@ -133,9 +132,9 @@ class TestPatternMatching(unittest.TestCase):
 		evaluate(parse("AAA foo", root), root)
 		evaluate(parse("blarf bar", root), root)
 
-		pattern = parse("pattern ninja (AAA qualifier) assassin (blarf qualifier) woot", root)
+		transition = parse("transition (pattern ninja (AAA qualifier) assassin (blarf qualifier) woot) (action no_action)", root)
 		expression =  parse("woot jibberish foo spiffy ninja bar assassin and other things as well", root)
-		matches = match(root, pattern, expression)
+		matches = match(root, transition, expression)
 
 		self.assertEqual(len(matches), 5, "Should have FIVE matching terms.")
 
@@ -151,10 +150,10 @@ class TestPatternMatching(unittest.TestCase):
 	# 	root = Category('*')
 	# 	evaluate(parse("AAA foo", root), root)
 	#
-	# 	pattern = parse("pattern (AAA qualifier)", root)
+	# 	transition = parse("transition (pattern (AAA qualifier)", root)
 	# 	qualified_term = root.comprehend("AAA", "qualifier")[0]
 	# 	expression =  parse("some other stuff plus %s" % qualified_term.name, root)
-	# 	matches = match(root, pattern, expression)
+	# 	matches = match(root, transition, expression)
 	#
 	# 	self.assertTrue(qualified_term.name not in names(matches), "This will cause an endless loop during evaluation.")
 
@@ -163,11 +162,11 @@ class TestPatternMatching(unittest.TestCase):
 	# 	root = Category('*')
 	# 	evaluate(parse("AAA foo", root), root)
 	#
-	# 	pattern = parse("pattern flubber", root)
+	# 	transition = parse("transition (pattern flubber", root)
 	# 	print pattern.terms
 	# 	# qualified_term = root.comprehend("AAA", "qualifier")[0]
 	# 	# expression =  parse("some other stuff plus", root)
-	# 	# matches = match(root, pattern, expression)
+	# 	# matches = match(root, transition, expression)
 	# 	#
 	# 	# self.assertTrue(qualified_term.name not in names(matches), "This will cause an endless loop during evaluation.")
 
@@ -181,9 +180,9 @@ class TestPatternMatching(unittest.TestCase):
 		root = Category('*')
 		# evaluate(parse("foo string", root), root)
 
-		pattern = parse("pattern print (string qualifier)", root)
+		transition = parse("transition (pattern print (string qualifier)) (action no_action)", root)
 		expression =  parse('print "foo"', root)
-		matches = match(root, pattern, expression)
+		matches = match(root, transition, expression)
 
 		self.assertEqual(len(matches), 2, "Should have two matching terms.")
 
@@ -196,18 +195,42 @@ class TestPatternMatching(unittest.TestCase):
 	def test_regex_single_match(self):
 		root = Category('*')
 
-		pattern = parse(r"pattern /A\d+B\d+C/", root)
+		transition = parse(r"transition (pattern /A\d+B\d+C/) (action no_action)", root)
 		expression =  parse("foo", root)
-		matches = match(root, pattern, expression)
+		matches = match(root, transition, expression)
 
 		self.assertFalse(matches, "Nothing should match yet.")
 
 		expression =  parse("A123B456C", root)
-		matches = match(root, pattern, expression)
+		matches = match(root, transition, expression)
 
 		self.assertEqual(len(matches), 1, "Should have a match.")
 
 		self.assertEqual(matches.pop().name, "A123B456C")
+
+	# # -------------------------------------------------------
+	# # TEST NEGATIONS
+	# # -------------------------------------------------------
+	# # TODO: Decide in full how negations will work.
+	# def test_negated_single_match(self):
+	# 	root = Category('*')
+	#
+	# 	transition = parse(r"transition (pattern (not foo))", root)
+	# 	expression =  parse("foo", root)
+	# 	matches = match(root, transition, expression)
+	#
+	# 	self.assertFalse(matches, "Nothing should match yet.")
+	#
+	# 	expression =  parse("bar", root)
+	# 	matches = match(root, transition, expression)
+	#
+	# 	print "Matches:"
+	# 	print matches
+	#
+	# 	self.assertEqual(len(matches), 1, "Should have a match.")
+	#
+	# 	self.assertEqual(matches.pop().name, "bar")
+
 
 
 if __name__ == '__main__':

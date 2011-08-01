@@ -75,41 +75,31 @@ class TestTransitions(unittest.TestCase):
 
 
 	# DRAGONS!!
-	# def test_typed_transition(self):
-	# 	root = Category('*')
-	#
-	# 	# term = '"example"'
-	# 	term = "example string" # "example" is a string. Eventually just saying "example" should be equivalent.
-	# 	evaluate(parse(term, root), root )
-	#
-	# 	# If you see a string, process it by putting it in the "processed" category.
-	# 	transition = "transition (pattern (string qualifier)) (action processed)"
-	# 	evaluate(parse(transition, root), root)
-	#
-	#
-	# 	matches = root.comprehend("example", "processed")
-	# 	self.assertEqual(len(matches), 0, "Shouldn't have a relationship between these yet.")
-	#
-	# 	expression = "example" # This should be enough to fire the transition.
-	# 	evaluate(parse(expression, root), root )
-	#
-	# 	# Verify the result.
-	# 	# matches = root.comprehend("example", "processed")
-	# 	matches = [cat for cat in root.comprehend("example", "processed") if 'position' not in cat.contents]
-	#
-	# 	# CategoryInspector(root).dump_to_file('typed_transitions_2.dot')
-	#
-	# 	self.assertTrue(len(matches) > 0, "Did the transition fire? 'example' should be in 'processed' now.")
+	def test_typed_transition(self):
+		root = Category('*')
+
+		# term = '"example"'
+		term = "example string" # "example" is a string. Eventually just saying "example" should be equivalent.
+		evaluate(parse(term, root), root )
+
+		# If you see a string, process it by putting it in the "processed" category.
+		# TODO: Get rid of the (not processed) negation when implicit negations are added.
+		transition = "transition (pattern (string qualifier)) (action processed)"
+		evaluate(parse(transition, root), root)
+
+		matches = root.comprehend("example", "processed")
+		self.assertEqual(len(matches), 0, "Shouldn't have a relationship between these yet.")
+
+		expression = "example" # This should be enough to fire the transition.
+		evaluate(parse(expression, root), root )
+
+		# Verify the result.
+		# matches = root.comprehend("example", "processed")
+		matches = [cat for cat in root.comprehend("example", "processed") if 'position' not in cat.contents]
+
+		# CategoryInspector(root).dump_to_file('typed_transitions_2.dot')
+
+		self.assertTrue(len(matches) > 0, "Did the transition fire? 'example' should be in 'processed' now.")
 
 if __name__ == '__main__':
     unittest.main()
-
-
-
-
-
-
-
-
-
-

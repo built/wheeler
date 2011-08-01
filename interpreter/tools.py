@@ -121,12 +121,19 @@ def is_regex(context, category):
 def is_relation(category):
 	return "__relation__" in category.name
 
+def is_negated(category):
+	return "not" in category.contents
 
 def pattern_terms(context, pattern):
 	return [term for term in pattern.contents.values()
 		if term.name != context.name
 		and term.name != "pattern"
-		and ( is_qualifier(term) or not is_relation(term) ) ]
+		and ( (is_qualifier(term) or is_negated(term)) or not is_relation(term) ) ]
+
+def negated_terms(context, negated):
+	return [term for term in negated.contents.values()
+		if term.name != context.name
+		and term.name != "not"] if is_negated(negated) else []
 
 def quality(context, qualifier):
 	return [term for term in qualifier.contents.values() if term.name != context.name and term.name != "qualifier" and not is_relation(term)]
@@ -137,12 +144,16 @@ def no_relations(names):
 def pure_terms(terms, *exclude):
 	return no_relations([term for term in terms.terms if term not in exclude])
 
-def action_for_pattern(context, pattern):
-	transitions = context.comprehend("transition", "!metadata", pattern.name)
-	if transitions:
-		actions = context.comprehend("action", "!metadata", transitions[0].name)
-		if actions:
-			return actions[0]
+def action(context, transition):
+	actions = context.comprehend("action", "!metadata", transition.name)
+	if actions:
+		return actions[0]
+	return None # This pains me. Falling through with null. TODO: Grace.
+
+def pattern(context, transition):
+	patterns = context.comprehend("pattern", "!metadata", transition.name)
+	if patterns:
+		return patterns[0]
 	return None # This pains me. Falling through with null. TODO: Grace.
 
 def dump_pattern(context, pattern):
@@ -162,25 +173,30 @@ def qualified_type(context, term):
 	types = quality(context, term)
 	return types[0].name if types else '' # Default to no type, aka "everything".
 
-def term_in_expression(context, term, expression):
-	return context.comprehend(expression.name, term.name)
-
-
-def match(context, pattern, expression):
-	pure_pattern = pattern_terms(context, pattern)
+def match(context, transition, expression):
+	pure_pattern = pattern_terms(context, pattern(context, transition))
 	expression_terms = [term for term in expression.contents.values() if term.name != context.name and "metadata" not in term.terms]
-
-	literals = {term.name:None for term in pure_pattern if not is_qualifier(term) and not is_regex(context, term)}
+	action_terms = set(no_relations(action(context, transition).terms)) - set([context.name, "action"])
+	literals = {term.name:None for term in pure_pattern if not is_qualifier(term) and not is_negated(term) and not is_regex(context, term)}
 
 	regexes = {term.name:None for term in pure_pattern if is_regex(context, term)}
 
-	# Important note with qualifieds: Can't allow a pattern term to also be in the expression or you'll get an endless loop.
 	qualifieds = {term:[] for term in pure_pattern if is_qualifier(term)}
+
+	negateds = {x for x in names(list(chain.from_iterable([negated_terms(context, term) for term in pure_pattern if is_negated(term)]))) if "__relation__" not in x}
+
+	negateds = negateds | action_terms
+
+	negated_found = False
 
 	for expression_term in expression_terms:
 		for literal_term in literals.keys():
 			if literal_term == expression_term.name:
 				literals[literal_term] = expression_term
+
+		if expression_term.name in negateds:
+			negated_found = True
+			break
 
 		for regex_term in regexes.keys():
 			if re.match(regex_term[1:-1], expression_term.name):
@@ -197,7 +213,7 @@ def match(context, pattern, expression):
 	all_matches = [match for match in literals.values() if match] + [match for match in regexes.values() if match] + list(chain.from_iterable(match for match in qualifieds.values() if match))
 
 	# ALL terms in the pattern must have a match.
-	return all_matches if all(literals.values()) and all(qualifieds.values()) and all(regexes.values()) else []
+	return all_matches if all(literals.values()) and all(qualifieds.values()) and all(regexes.values()) and not negated_found else []
 
 
 def interact(context, *categories):
@@ -210,29 +226,28 @@ def interact(context, *categories):
 	return interaction
 
 def evaluate(expression, context):
-		expressions = []
+	expressions = []
 
-		for pattern in all_patterns(context):
-			matches = match(context, pattern, expression)
-			if matches:
-				action = action_for_pattern(context, pattern)
-				if action:
-					pattern_terms = set(pure_terms(pattern, 'pattern'))
-					action_terms = set(pure_terms(action, 'action'))
-					parameters = {m.name for m in matches} - pattern_terms
-					expressions += [ " ".join(action_terms | parameters) ]
+	for transition in all_transitions(context):
+		matches = match(context, transition, expression)
+		if matches:
+			if action(context, transition):
+				pattern_terms = set(pure_terms(pattern(context, transition), 'pattern'))
+				action_terms = set(pure_terms(action(context, transition), 'action'))
+				parameters = {m.name for m in matches} - pattern_terms
+				expressions += [ " ".join(action_terms | parameters) ]
 
-		for new_expression_string in expressions:
-			evaluate( parse(new_expression_string, context), context)
+	for new_expression_string in expressions:
+		evaluate( parse(new_expression_string, context), context)
 
-		if expression:
-			if "dump" in expression.terms:
-				dump(context, expression.terms)
+	if expression:
+		if "dump" in expression.terms:
+			dump(context, expression.terms)
+			return
+		elif "STDOUT" in expression.terms:
+			if context.comprehend("prelude", "loaded"):
+				printout(context, expression)
 				return
-			elif "STDOUT" in expression.terms:
-				if context.comprehend("prelude", "loaded"):
-					printout(context, expression)
-					return
 
 
 def shorthand(name):
@@ -271,6 +286,7 @@ def attach_timestamp(context, interaction):
 def names(categories):
 	return set([cat.name for cat in categories])
 
-def all_patterns(context):
-	return [pattern for pattern in context.comprehend("pattern", "!transition", "!metadata") if "metadata" not in pattern.terms]
+def all_transitions(context):
+	return [transition for transition in context.comprehend("transition", "!metadata") if "metadata" not in transition.terms]
+
 
