@@ -116,7 +116,7 @@ def is_qualifier(category):
 	return "qualifier" in category.contents
 
 def is_regex(context, category):
-	return context.comprehend(category.name, "regex", "metadata")
+	return [term for term in context.comprehend(category.name, "regex", "metadata") if term.name != context.name]
 
 def is_relation(category):
 	return "__relation__" in category.name
