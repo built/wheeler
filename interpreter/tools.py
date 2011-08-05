@@ -118,6 +118,12 @@ def is_qualifier(category):
 def is_regex(context, category):
 	return [term for term in context.comprehend(category.name, "regex", "metadata") if term.name != context.name]
 
+def is_metadata(category):
+	return "metadata" in category.contents
+
+def is_transition(category):
+	return "transition" in category.contents
+
 def is_relation(category):
 	return "__relation__" in category.name
 
@@ -125,10 +131,17 @@ def is_negated(category):
 	return "not" in category.contents
 
 def pattern_terms(context, pattern):
+	# Things to filter out of a pattern expression before pattern matching:
+	#
+	# context
+	# pattern tag
+	# transition relation
+	# any metadata for the pattern expression
 	return [term for term in pattern.contents.values()
 		if term.name != context.name
 		and term.name != "pattern"
-		and ( (is_qualifier(term) or is_negated(term)) or not is_relation(term) ) ]
+		and not is_transition(term)
+		and not is_metadata(term) ]
 
 def negated_terms(context, negated):
 	return [term for term in negated.contents.values()
@@ -157,15 +170,10 @@ def pattern(context, transition):
 	return None # This pains me. Falling through with null. TODO: Grace.
 
 def dump_pattern(context, pattern):
-	print "-= PATTERN DUMP =-"
+	print "-= PATTERN DUMP: %s =-" % pattern.name
 
-	for term in pattern:
-		if is_qualifier(term):
-			qualified = qualified_type(context, term)
-
-			print "[%s]" % (qualified if qualified else 'EVERYTHING')
-		else:
-			print term.name
+	for term in pattern.contents.values():
+		print "%s ==> %s" % (term.name, term.terms)
 
 	print "-= ------------ =-"
 
@@ -177,11 +185,11 @@ def match(context, transition, expression):
 	pure_pattern = pattern_terms(context, pattern(context, transition))
 	expression_terms = [term for term in expression.contents.values() if term.name != context.name and "metadata" not in term.terms]
 	action_terms = set(no_relations(action(context, transition).terms)) - set([context.name, "action"])
-	literals = {term.name:None for term in pure_pattern if not is_qualifier(term) and not is_negated(term) and not is_regex(context, term)}
+	literals = {term.name:None for term in pure_pattern if not is_relation(term) and not is_negated(term) and not is_regex(context, term)}
 
 	regexes = {term.name:None for term in pure_pattern if is_regex(context, term)}
 
-	qualifieds = {term:[] for term in pure_pattern if is_qualifier(term)}
+	qualifieds = {term:[] for term in pure_pattern if is_relation(term) } # Let's assume by this point all useless relations are removed.
 
 	negateds = {x for x in names(list(chain.from_iterable([negated_terms(context, term) for term in pure_pattern if is_negated(term)]))) if "__relation__" not in x}
 
@@ -203,10 +211,10 @@ def match(context, transition, expression):
 				regexes[regex_term] = expression_term
 
 		for qualified_term in qualifieds.keys():
-			qualifying_set = set(term for term in qualified_term.contents.values() if term.name != context.name and "__relation__" not in term.name and term.name != "qualifier")
+			qualifying_set = set(term for term in qualified_term.contents.values() if term.name != context.name and "__relation__" not in term.name)
 			qualification = [expression_term.name] + list(names(qualifying_set))
-			relationship = [relation for relation in context.comprehend(*qualification) if relation.name != context.name]
-			if relationship and expression_term.name not in qualified_term.terms:
+			existing_relationship = [relation for relation in context.comprehend(*qualification) if relation.name != context.name]
+			if existing_relationship and expression_term.name not in qualified_term.terms:
 				qualifieds[qualified_term] += [expression_term]
 
 	# Don't return nulls, only real matches.
@@ -248,6 +256,13 @@ def evaluate(expression, context):
 			if context.comprehend("prelude", "loaded"):
 				printout(context, expression)
 				return
+		elif "lookup" in expression.terms:
+			terms = [term for term in expression.terms if term != "lookup" and term != '*' and "__relation__" not in term]
+			for result in context.comprehend(*terms):
+				for item in result.terms:
+					if "__relation__" not in item:
+						print item
+			return
 
 
 def shorthand(name):

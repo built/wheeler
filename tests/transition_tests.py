@@ -45,7 +45,7 @@ class TestTransitions(unittest.TestCase):
 		evaluate(parse(term, root), root )
 
 		# Define a transition that detects when something enters "foo". That 'something' should be connected to "bar".
-		transition = "transition (pattern foo (* qualifier) ) (action bar)"
+		transition = "transition (pattern foo (*) ) (action bar)"
 		evaluate(parse(transition, root), root)
 
 		matches = root.comprehend("bar", "works")
@@ -84,7 +84,7 @@ class TestTransitions(unittest.TestCase):
 
 		# If you see a string, process it by putting it in the "processed" category.
 		# TODO: Get rid of the (not processed) negation when implicit negations are added.
-		transition = "transition (pattern (string qualifier)) (action processed)"
+		transition = "transition (pattern (string)) (action processed)"
 		evaluate(parse(transition, root), root)
 
 		matches = root.comprehend("example", "processed")

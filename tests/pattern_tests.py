@@ -52,11 +52,11 @@ class TestPatternMatching(unittest.TestCase):
 		root = Category('*')
 		evaluate(parse("AAA foo", root), root)
 
-		transition = parse("transition (pattern (AAA qualifier)) (action no_action)", root)
+		transition = parse("transition (pattern (AAA)) (action no_action)", root)
 		expression =  parse("foo", root)
 		matches = match(root, transition, expression)
 
-		self.assertEqual(len(matches), 1, "Should have ONE match only.")
+		self.assertEqual(len(matches), 1, "Should have one match, and ONE match only.")
 
 		self.assertEqual(matches.pop().name, "foo")
 
@@ -67,7 +67,7 @@ class TestPatternMatching(unittest.TestCase):
 		evaluate(parse("AAA foo", root), root)
 		evaluate(parse("blarf bar", root), root)
 
-		transition = parse("transition (pattern (AAA qualifier) (blarf qualifier)) (action no_action)", root)
+		transition = parse("transition (pattern (AAA) (blarf)) (action no_action)", root)
 		expression =  parse("foo bar", root)
 		matches = match(root, transition, expression)
 
@@ -81,7 +81,7 @@ class TestPatternMatching(unittest.TestCase):
 		evaluate(parse("AAA foo", root), root)
 		evaluate(parse("blarf bar", root), root)
 
-		transition = parse("transition (pattern (AAA qualifier) (blarf qualifier)) (action no_action)", root)
+		transition = parse("transition (pattern (AAA) (blarf)) (action no_action)", root)
 		expression =  parse("fizz binn", root)
 		matches = match(root, transition, expression)
 
@@ -93,7 +93,7 @@ class TestPatternMatching(unittest.TestCase):
 		evaluate(parse("AAA foo", root), root)
 		evaluate(parse("blarf bar", root), root)
 
-		transition = parse("transition (pattern (AAA qualifier) (blarf qualifier))  (action no_action)", root)
+		transition = parse("transition (pattern (AAA) (blarf))  (action no_action)", root)
 		expression =  parse("foo barney whoo hoo", root)
 		matches = match(root, transition, expression)
 
@@ -108,7 +108,7 @@ class TestPatternMatching(unittest.TestCase):
 		root = Category('*')
 		evaluate(parse("AAA foo", root), root)
 
-		transition = parse("transition (pattern bar (AAA qualifier)) (action no_action)", root)
+		transition = parse("transition (pattern bar (AAA)) (action no_action)", root)
 		expression =  parse("foo bar", root)
 		matches = match(root, transition, expression)
 
@@ -120,7 +120,7 @@ class TestPatternMatching(unittest.TestCase):
 		root = Category('*')
 		evaluate(parse("AAA foo", root), root)
 
-		transition = parse("transition (pattern bar (AAA qualifier)) (action no_action)", root)
+		transition = parse("transition (pattern bar (AAA)) (action no_action)", root)
 		expression =  parse("fizz bin bar", root)
 		matches = match(root, transition, expression)
 
@@ -132,7 +132,7 @@ class TestPatternMatching(unittest.TestCase):
 		evaluate(parse("AAA foo", root), root)
 		evaluate(parse("blarf bar", root), root)
 
-		transition = parse("transition (pattern ninja (AAA qualifier) assassin (blarf qualifier) woot) (action no_action)", root)
+		transition = parse("transition (pattern ninja (AAA) assassin (blarf) woot) (action no_action)", root)
 		expression =  parse("woot jibberish foo spiffy ninja bar assassin and other things as well", root)
 		matches = match(root, transition, expression)
 
@@ -180,7 +180,7 @@ class TestPatternMatching(unittest.TestCase):
 		root = Category('*')
 		# evaluate(parse("foo string", root), root)
 
-		transition = parse("transition (pattern print (string qualifier)) (action no_action)", root)
+		transition = parse("transition (pattern print (string)) (action no_action)", root)
 		expression =  parse('print "foo"', root)
 		matches = match(root, transition, expression)
 
