@@ -6,6 +6,20 @@ from interpreter.tools import parse, evaluate
 from common import *
 import os
 
+
+def load_file(filename):
+	try:
+		for line in open( os.path.dirname(os.path.abspath(__file__)) + "/%s.w" % filename, "r"):
+			line = line.strip()
+			# Comment stripper. Fragile!
+			line = line[:line.find('#')] if '#' in line else line
+
+			# Ignore blank lines
+			if line:
+				evaluate( parse(line, ROOT), ROOT )
+	except:
+		print "Can't load that file for some damned reason or another."
+
 def load_prelude():
 
 	for line in open( os.path.dirname(os.path.abspath(__file__)) + "/prelude.w", "r"):
@@ -56,6 +70,13 @@ while not exiting:
 		print "* was reset"
 		continue
 
+	if command.split() and command.split()[0] == "load":
+		args = command.split()
+		if len(args) != 2:
+			print "This didn't make sense for loading: ", args
+		else:
+			load_file(args[1])
+		continue
 
 	# Ignore blank lines
 	if line:

@@ -32,8 +32,8 @@ class TestExecution(unittest.TestCase):
 		setup_expressions = [
 			"foo A",
 			"bar B",
-			"transition (pattern (A qualifier)) (action B)",
-			"transition (pattern (Y qualifier)) (action Z)",
+			"transition (pattern (A)) (action B)",
+			"transition (pattern (Y)) (action Z)",
 		]
 
 		# Setup the world

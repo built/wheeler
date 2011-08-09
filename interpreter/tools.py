@@ -217,11 +217,16 @@ def match(context, transition, expression):
 			if existing_relationship and expression_term.name not in qualified_term.terms:
 				qualifieds[qualified_term] += [expression_term]
 
+
+	for neg in negateds:
+		if neg in literals:
+			literals[neg] = None
+
 	# Don't return nulls, only real matches.
 	all_matches = [match for match in literals.values() if match] + [match for match in regexes.values() if match] + list(chain.from_iterable(match for match in qualifieds.values() if match))
 
 	# ALL terms in the pattern must have a match.
-	return all_matches if all(literals.values()) and all(qualifieds.values()) and all(regexes.values()) and not negated_found else []
+	return all_matches if all(literals.values()) and all(qualifieds.values()) and all(regexes.values()) else []
 
 
 def interact(context, *categories):
@@ -233,10 +238,24 @@ def interact(context, *categories):
 		context.connect(category)  # TODO: Why is this needed? Tests break w/o it, but why?
 	return interaction
 
-def evaluate(expression, context):
-	expressions = []
+def execute_builtin_transitions(context, expression):
+	if expression:
+		if "dump" in expression.terms:
+			dump(context, expression.terms)
+		elif "STDOUT" in expression.terms:
+			if context.comprehend("prelude", "loaded"):
+				printout(context, expression)
+		elif "lookup" in expression.terms:
+			terms = [term for term in expression.terms if term != "lookup" and term != '*' and "__relation__" not in term]
+			for result in context.comprehend(*terms):
+				for item in result.terms:
+					if "__relation__" not in item:
+						print item
 
-	for transition in all_transitions(context):
+def execute_user_transitions(context, expression):
+	expressions = []
+	transitions = all_transitions(context)
+	for transition in transitions:
 		matches = match(context, transition, expression)
 		if matches:
 			if action(context, transition):
@@ -244,25 +263,15 @@ def evaluate(expression, context):
 				action_terms = set(pure_terms(action(context, transition), 'action'))
 				parameters = {m.name for m in matches} - pattern_terms
 				expressions += [ " ".join(action_terms | parameters) ]
+	return expressions
 
-	for new_expression_string in expressions:
-		evaluate( parse(new_expression_string, context), context)
 
-	if expression:
-		if "dump" in expression.terms:
-			dump(context, expression.terms)
-			return
-		elif "STDOUT" in expression.terms:
-			if context.comprehend("prelude", "loaded"):
-				printout(context, expression)
-				return
-		elif "lookup" in expression.terms:
-			terms = [term for term in expression.terms if term != "lookup" and term != '*' and "__relation__" not in term]
-			for result in context.comprehend(*terms):
-				for item in result.terms:
-					if "__relation__" not in item:
-						print item
-			return
+def evaluate(expression, context):
+
+	execute_builtin_transitions(context, expression)
+
+	for new_expression in execute_user_transitions(context, expression):
+		evaluate( parse(new_expression, context), context)
 
 
 def shorthand(name):
@@ -301,7 +310,9 @@ def attach_timestamp(context, interaction):
 def names(categories):
 	return set([cat.name for cat in categories])
 
+def relation_id(relation):
+	return int(relation.name.split("__")[-1])
+
 def all_transitions(context):
-	return [transition for transition in context.comprehend("transition", "!metadata") if "metadata" not in transition.terms]
-
-
+	transitions = [transition for transition in context.comprehend("transition", "!metadata") if "metadata" not in transition.terms]
+	return sorted(transitions, key=relation_id)
