@@ -116,7 +116,7 @@ def is_qualifier(category):
 	return "qualifier" in category.contents
 
 def is_regex(context, category):
-	return [term for term in context.comprehend(category.name, "regex", "metadata") if term.name != context.name]
+	return len(category.name) > 1 and category.name[-1] == '/' and category.name[0] == '/'
 
 def is_metadata(category):
 	return "metadata" in category.contents
@@ -130,32 +130,35 @@ def is_relation(category):
 def is_negated(category):
 	return "not" in category.contents
 
-def pattern_terms(context, pattern):
-	# Things to filter out of a pattern expression before pattern matching:
-	#
-	# context
-	# pattern tag
-	# transition relation
-	# any metadata for the pattern expression
-	return [term for term in pattern.contents.values()
-		if term.name != context.name
-		and term.name != "pattern"
-		and not is_transition(term)
-		and not is_metadata(term) ]
-
 def negated_terms(context, negated):
 	return [term for term in negated.contents.values()
 		if term.name != context.name
 		and term.name != "not"] if is_negated(negated) else []
-
-def quality(context, qualifier):
-	return [term for term in qualifier.contents.values() if term.name != context.name and term.name != "qualifier" and not is_relation(term)]
 
 def no_relations(names):
 	return [name for name in names if "__relation__" not in name]
 
 def pure_terms(terms, *exclude):
 	return no_relations([term for term in terms.terms if term not in exclude])
+
+def pure_pattern_terms(context, transition):
+	# Things to filter out of a pattern expression before pattern matching:
+	#
+	# context
+	# pattern tag
+	# transition relation
+	# any metadata for the pattern expression
+	return [term for term in pattern(context, transition).contents.values()
+		if term.name != context.name
+		and term.name != "pattern"
+		and not is_transition(term)
+		and not is_metadata(term) ]
+
+def pure_action_terms(context, transition):
+	return set(no_relations(action(context, transition).terms)) - set([context.name, "action"])
+
+def pure_expression_terms(context, expression):
+	return [term for term in expression.contents.values() if term.name != context.name and "metadata" not in term.terms]
 
 def action(context, transition):
 	actions = context.comprehend("action", "!metadata", transition.name)
@@ -177,30 +180,34 @@ def dump_pattern(context, pattern):
 
 	print "-= ------------ =-"
 
-def qualified_type(context, term):
-	types = quality(context, term)
-	return types[0].name if types else '' # Default to no type, aka "everything".
-
 def match(context, transition, expression):
-	pure_pattern = pattern_terms(context, pattern(context, transition))
-	expression_terms = [term for term in expression.contents.values() if term.name != context.name and "metadata" not in term.terms]
-	action_terms = set(no_relations(action(context, transition).terms)) - set([context.name, "action"])
-	literals = {term.name:None for term in pure_pattern if not is_relation(term) and not is_negated(term) and not is_regex(context, term)}
+	expression_terms = pure_expression_terms(context, expression)
+	pattern_terms = pure_pattern_terms(context, transition)
+	action_terms = pure_action_terms(context, transition)
 
-	regexes = {term.name:None for term in pure_pattern if is_regex(context, term)}
+	# Literals are any non-special category.
+	literals = {term.name:None for term in pattern_terms if not is_relation(term) and not is_negated(term) and not is_regex(context, term)}
 
-	qualifieds = {term:[] for term in pure_pattern if is_relation(term) } # Let's assume by this point all useless relations are removed.
+	# Regexes are terms whose names look like /this/
+	regexes = {term.name:None for term in pattern_terms if is_regex(context, term)}
 
-	negateds = {x for x in names(list(chain.from_iterable([negated_terms(context, term) for term in pure_pattern if is_negated(term)]))) if "__relation__" not in x}
+	# Qualifieds are terms with a nested value or values to be matched.
+	# Ex, this matches any string: pattern (string)
+	qualifieds = {term:[] for term in pattern_terms if is_relation(term) } # Let's assume by this point all useless relations are removed.
 
+	# Negateds are a special kind of qualified term. They
+	negateds = set( no_relations(names(list(chain.from_iterable([negated_terms(context, term) for term in pattern_terms if is_negated(term)])))) )
+
+	# We add the action terms to the list of negated items to prevent emission of unintentionally recursive expressions.
 	negateds = negateds | action_terms
 
 	negated_found = False
 
 	for expression_term in expression_terms:
-		for literal_term in literals.keys():
-			if literal_term == expression_term.name:
-				literals[literal_term] = expression_term
+
+		if expression_term.name in literals:
+			literals[expression_term.name] = expression_term
+			continue
 
 		if expression_term.name in negateds:
 			negated_found = True
@@ -209,6 +216,7 @@ def match(context, transition, expression):
 		for regex_term in regexes.keys():
 			if re.match(regex_term[1:-1], expression_term.name):
 				regexes[regex_term] = expression_term
+				break
 
 		for qualified_term in qualifieds.keys():
 			qualifying_set = set(term for term in qualified_term.contents.values() if term.name != context.name and "__relation__" not in term.name)
@@ -216,8 +224,10 @@ def match(context, transition, expression):
 			existing_relationship = [relation for relation in context.comprehend(*qualification) if relation.name != context.name]
 			if existing_relationship and expression_term.name not in qualified_term.terms:
 				qualifieds[qualified_term] += [expression_term]
+				break
 
-
+	# For every negated term, erase any literals that matched.
+	# This is quite literally where negation happens.
 	for neg in negateds:
 		if neg in literals:
 			literals[neg] = None
