@@ -8,6 +8,10 @@ Wheeler doesn't have much implemented yet but you can do some simple things in t
 
 There is also an interpreter that you can execute from the command line like so: ./wheeler
 
+Reading
+---------------------
+And here's an out-of-date but still useful intro to Wheeler: http://www.youell.com/matt/writing/?p=659
+
 
 Requirements
 ------------
