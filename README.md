@@ -10,7 +10,11 @@ There is also an interpreter that you can execute from the command line like so:
 
 Reading
 ---------------------
-And here's an out-of-date but still useful intro to Wheeler: http://www.youell.com/matt/writing/?p=659
+There is now a small wiki about Wheeler: https://github.com/built/wheeler/wiki/
+
+Here's a very quick intro to Wheeler: https://github.com/built/wheeler/wiki/7-Minutes-In-Heaven-With-Wheeler-And-Your-Mom
+
+And here's a much older but still somewhat useful intro to Wheeler: http://www.youell.com/matt/writing/?p=659
 
 
 Requirements
