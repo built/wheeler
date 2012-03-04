@@ -14,20 +14,23 @@ There is now a small wiki about Wheeler: https://github.com/built/wheeler/wiki/
 
 Here's a very quick intro to Wheeler: https://github.com/built/wheeler/wiki/7-Minutes-In-Heaven-With-Wheeler-And-Your-Mom
 
-And here's a much older but still somewhat useful intro to Wheeler: http://www.youell.com/matt/writing/?p=659
+And here's a much older (but more sane) intro to Wheeler: http://www.youell.com/matt/writing/?p=659
 
 
 Requirements
 ------------
 * Python 2.7
-* the AssociativeTools library https://github.com/built/AssociativeTools
 
 
-How do I run this?
+How do I install and run this?
 ------------------
-You'll need to have the Associative Tools library in your PYTHONPATH.
+Easy as 1, 2, 3:
 
-After that just type ./bigwheel and you should see the Wheeler prompt.
+1. `git clone git@github.com:built/wheeler.git`
+
+2. `cd wheeler`
+
+3. `./bigwheel`
 
 
 Feedback
