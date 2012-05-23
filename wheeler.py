@@ -2,7 +2,7 @@
 from category import Category
 import fileinput
 import sys
-from interpreter.tools import parse, evaluate
+from interpreter.tools import parse, evaluate, expand_arrows
 from common import *
 import os
 
@@ -15,7 +15,7 @@ def load_prelude():
 
 		# Ignore blank lines
 		if line:
-			evaluate( parse(line, ROOT), ROOT )
+			evaluate( parse( expand_arrows(line), ROOT), ROOT )
 
 load_prelude()
 

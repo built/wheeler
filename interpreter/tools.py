@@ -326,3 +326,11 @@ def relation_id(relation):
 def all_transitions(context):
 	transitions = [transition for transition in context.comprehend("transition", "!metadata") if "metadata" not in transition.terms]
 	return sorted(transitions, key=relation_id)
+
+def expand_arrows(line):
+	if '->' not in line: return line
+
+	# Only consider two-part transitions for now.
+	(front, back) = [x.strip() for x in line.split('->')][:2]
+
+	return "transition (pattern %s) (action %s)" % (front, back)

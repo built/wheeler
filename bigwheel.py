@@ -2,10 +2,9 @@
 from category import Category
 import fileinput
 import sys
-from interpreter.tools import parse, evaluate
+from interpreter.tools import parse, evaluate, expand_arrows
 from common import *
 import os
-
 
 def load_file(filename):
 	try:
@@ -16,7 +15,7 @@ def load_file(filename):
 
 			# Ignore blank lines
 			if line:
-				evaluate( parse(line, ROOT), ROOT )
+				evaluate( parse( expand_arrows(line), ROOT), ROOT )
 	except:
 		print "Can't load that file for some damned reason or another."
 
@@ -81,7 +80,7 @@ while not exiting:
 	# Ignore blank lines
 	if line:
 		relations_before = len(ROOT.terms)
-		evaluate( parse(line, ROOT), ROOT )
+		evaluate( parse( expand_arrows(line), ROOT), ROOT )
 		relations_after = len(ROOT.terms)
 		# print "%i relations created. Current total: %i" % ( (relations_after - relations_before), relations_after)
 		# print "%i patterns now exist." % len(ROOT.comprehend("pattern"))
