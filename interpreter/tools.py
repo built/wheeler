@@ -334,3 +334,12 @@ def expand_arrows(line):
 	(front, back) = [x.strip() for x in line.split('->')][:2]
 
 	return "transition (pattern %s) (action %s)" % (front, back)
+
+def even(number):
+	return (number % 2) == 0
+
+def has_dangling_quote(line):
+	"""
+	Returns true if the line contains an odd number of quote characters.
+	"""
+	return even(  len( line.split('"') )  )

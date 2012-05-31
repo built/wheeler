@@ -2,7 +2,7 @@
 from category import Category
 import fileinput
 import sys
-from interpreter.tools import parse, evaluate, expand_arrows
+from interpreter.tools import parse, evaluate, expand_arrows, has_dangling_quote
 from common import *
 import os
 
@@ -44,10 +44,23 @@ help_text = """Commands:
 
 load_prelude()
 
+def next_line_of_input():
+	line = raw_input(">> ") + "\n"
+	if not has_dangling_quote(line): return line
+	# Otherwise keep accumulating the line until we get balanced quotes.
+	accumulating = True
+	while(accumulating):
+		nextline = raw_input() + "\n"
+		line += nextline
+		accumulating = not has_dangling_quote(nextline) # stop
+
+	return line
+
 while not exiting:
 
-	line = raw_input(">> ").strip()
-	command = line.lower() # The line may be a REPL command.
+	line = next_line_of_input()
+
+	command = line.lower().strip() # The line may be a REPL command.
 
 	if command in exit_commands:
 		exiting = True
@@ -82,11 +95,6 @@ while not exiting:
 		relations_before = len(ROOT.terms)
 		evaluate( parse( expand_arrows(line), ROOT), ROOT )
 		relations_after = len(ROOT.terms)
-		# print "%i relations created. Current total: %i" % ( (relations_after - relations_before), relations_after)
-		# print "%i patterns now exist." % len(ROOT.comprehend("pattern"))
-
-		# CategoryInspector(ROOT).dump_to_file("bigwheel.dot")
-		# CategoryInspector(ROOT).dump_to_file_especial("bigwheel.dot")
 
 
 
