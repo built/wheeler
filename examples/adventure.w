@@ -1,17 +1,17 @@
 # An Adventure-style game for Wheeler
-# Inspiration (but not implementation) drawn from Dennis Merritt's "Adventure in Prolog". Props.
+# Inspiration (but not implementation) drawn from Dennis Merritt's "Adventure in Prolog". Read it.
 
-# THIS CODE DOES NOT WORK AS OF YET. This is an ongoing example and exploration. Bear with me.
+# This is an ongoing example and exploration, and not a full game.
 
 # Introduce the game:
-transition (pattern begin game) (action intro1)
+begin game -> intro1
 
-transition (pattern intro1) (action print "Adventure in Wheeler" intro2)
-transition (pattern intro2) (action print "-------------------------------" intro3)
-transition (pattern intro3) (action print "You are a young detective named Trixie. You are trying to find " intro4)
-transition (pattern intro4) (action print "your friend Honey after her mysterious disappearance this morning." intro5)
-transition (pattern intro5) (action print "You are standing in the foyer of Honey's house, a modest mansion in " intro6)
-transition (pattern intro6) (action print "the countryside. You are facing east.")
+intro1 -> print "Adventure in Wheeler" intro2
+intro2 -> print "-------------------------------" intro3
+intro3 -> print "You are a young detective named Trixie. You are trying to find " intro4
+intro4 -> print "your friend Honey after her mysterious disappearance this morning." intro5
+intro5 -> print "You are standing in the foyer of Honey's house, a modest mansion in " intro6
+intro6 -> print "the countryside. You are facing east."
 
 
 # List our rooms
@@ -49,9 +49,12 @@ Porch Foyer
 Parlor Study Conservatory
 
 
-transition (pattern enter (room)) (action player)
-transition (pattern player (room)) (action print "You've entered ")
+enter (room) -> player
+player (room) -> print "You've entered "
+
 
 # Get the party started
 begin game
+
+
 

@@ -92,9 +92,7 @@ while not exiting:
 
 	# Ignore blank lines
 	if line:
-		relations_before = len(ROOT.terms)
 		evaluate( parse( expand_arrows(line), ROOT), ROOT )
-		relations_after = len(ROOT.terms)
 
 
 
